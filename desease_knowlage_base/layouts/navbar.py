@@ -3,7 +3,7 @@ import os
 import dash_bootstrap_components as dbc
 
 
-app_name = os.getenv("DASH_APP_PATH", "/dns-acquiring-dash")
+app_name = os.getenv("DASH_APP_PATH", "/desease-knowlage-base-dash")
 
 
 def Navbar():
@@ -21,10 +21,10 @@ def Navbar():
                         href=f"{app_name}/eval")),
         ],
         brand="Главная",
-        brand_href=f"{app_name}/",
+        brand_href="/",
         sticky="top",
-        color="black",1
-        dark=False,
+        color="black",
+        dark=True,
         expand="lg",
     )
     return navbar
