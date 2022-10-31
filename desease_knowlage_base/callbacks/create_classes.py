@@ -42,8 +42,8 @@ def generate_features(min_features: int,
         result.append(
             {
                 'name': "feature_{}".format(i),
-                'values': ["f_{}_value_{}".format(i, j) for j in range(values_num)],
-                'normal_values': ["f_{}_value_{}".format(i, j) for j in range(normal_values_num)]
+                'values': [{f"feature_{i}": j} for j in range(values_num)],
+                'normal_values': [{f"feature_{i}":j} for j in range(normal_values_num)]
             }
         )
 
@@ -89,31 +89,49 @@ def generate_periods(min_periods_num: int,
                 value_2 = abs(min(max_value_by_period, len(
                     feature_values) - min_value_by_period))
 
-                # !
                 count = randint(min(value_1, value_2), max(
-                    value_1, value_2)) % len(feature_values)
+                    value_1, value_2))
+                
+                len_feauture_values = len(feature_values)
+                if count > len_feauture_values:
+                    count = count % len_feauture_values
+                if count == 0:
+                    count = len(feature_values)
+                
                 period_values.append(sample(feature_values, count))
             else:
                 possible_values = list(
                     v for v in feature_values if not v in period_values[i - 1])
-
+                if not possible_values:
+                    break
+            
                 value_1 = abs(min_value_by_period)
                 value_2 = abs(min(
                     max_value_by_period, len(possible_values)))
 
                 # 
                 count = randint(min(value_1, value_2), max(
-                    value_1, value_2)) % len(possible_values)
+                    value_1, value_2))
+                len_possible_values = len(possible_values)
+                if count > len_possible_values:
+                    count = count % len_possible_values
+                if count == 0:
+                    count = len_possible_values
 
                 period_values.append(sample(possible_values, count))
-
-        result.append(
-            {
-                'duration_lower': duration_lower,
-                'duration_upper': duration_upper,
-                'values': period_values
-            }
-        )
+              
+              
+        if len(period_values) > max_periods_num:
+            period_values = period_values[:max_periods_num]
+            
+        if period_values:  
+            result.append(
+                {
+                    'duration_lower': duration_lower,
+                    'duration_upper': duration_upper,
+                    'values': period_values
+                }
+            )
 
     return result
 
