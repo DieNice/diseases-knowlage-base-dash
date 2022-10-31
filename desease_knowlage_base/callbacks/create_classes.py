@@ -37,7 +37,7 @@ def generate_features(min_features: int,
     for i in range(features_num):
         values_num = randint(min_values, max_values)
         normal_values_num = randint(
-            MIN_NORMAL_VALUES_NUM, values_num - MIN_ABNORMAL_VALUES_NUM)
+            MIN_NORMAL_VALUES_NUM, values_num)
 
         result.append(
             {
@@ -89,6 +89,7 @@ def generate_periods(min_periods_num: int,
                 value_2 = abs(min(max_value_by_period, len(
                     feature_values) - min_value_by_period))
 
+                # !
                 count = randint(min(value_1, value_2), max(
                     value_1, value_2)) % len(feature_values)
                 period_values.append(sample(feature_values, count))
@@ -100,6 +101,7 @@ def generate_periods(min_periods_num: int,
                 value_2 = abs(min(
                     max_value_by_period, len(possible_values)))
 
+                # 
                 count = randint(min(value_1, value_2), max(
                     value_1, value_2)) % len(possible_values)
 
@@ -129,7 +131,8 @@ def generate_classes(features: list[TFeature],
     for i in range(classes_num):
         min_v = min(min_features_in_class, len(features))
         max_v = max(min_features_in_class, len(features))
-        features_in_class_num = randint(min_v, max_v) % len(features)
+        # !
+        features_in_class_num = randint(min_v, max_v)
 
         selected_features = sorted(sample(
             features, features_in_class_num), key=lambda d: d['name'])
