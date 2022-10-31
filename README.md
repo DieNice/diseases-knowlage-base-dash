@@ -1,1 +1,1 @@
-# diseases-knowlage-base-dash
+# diseases-knowlege-base-dash

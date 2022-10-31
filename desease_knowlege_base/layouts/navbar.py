@@ -3,7 +3,7 @@ import os
 import dash_bootstrap_components as dbc
 
 
-app_name = os.getenv("DASH_APP_PATH", "/desease-knowlage-base-dash")
+app_name = os.getenv("DASH_APP_PATH", "/desease-knowlege-base-dash")
 
 
 def Navbar():

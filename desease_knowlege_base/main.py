@@ -12,7 +12,7 @@ from layouts.navbar import Navbar
 
 from callbacks.create_classes import generate
 
-app_name = os.getenv("DASH_APP_PATH", "/desease_knowlage_base")
+app_name = os.getenv("DASH_APP_PATH", "/desease_knowlege_base")
 
 nav = Navbar()
 
@@ -20,7 +20,7 @@ nav = Navbar()
 header = html.Div(
     children=[
         html.H1(
-            children="Deseases knowlage base", className="header-title"
+            children="Deseases knowlege base", className="header-title"
         ),
         html.P(
             children="Анализ данных модельной базы знаний",

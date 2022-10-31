@@ -5,7 +5,7 @@ from dash_extensions.enrich import DashProxy, MultiplexerTransform
 app = DashProxy(__name__, assets_folder='assets',
                 external_stylesheets=[dbc.themes.MATERIA], transforms=[MultiplexerTransform()])
 
-app.title = "Desease knowlage base"
+app.title = "Desease knowlege base"
 
 srv = app.server
 
