@@ -5,6 +5,10 @@ from typing import Dict, List, TypeAlias
 
 from app import app
 from dash_extensions.enrich import Input, Output, State
+import sqlalchemy
+from sqlalchemy import MetaData
+
+from uuid import uuid1
 
 TFeature: TypeAlias = Dict[str, List[str]]
 TPeriod: TypeAlias = Dict[int, List[str]]
@@ -43,7 +47,7 @@ def generate_features(min_features: int,
             {
                 'name': "feature_{}".format(i),
                 'values': [{f"feature_{i}": j} for j in range(values_num)],
-                'normal_values': [{f"feature_{i}":j} for j in range(normal_values_num)]
+                'normal_values': [{f"feature_{i}": j} for j in range(normal_values_num)]
             }
         )
 
@@ -91,25 +95,25 @@ def generate_periods(min_periods_num: int,
 
                 count = randint(min(value_1, value_2), max(
                     value_1, value_2))
-                
+
                 len_feauture_values = len(feature_values)
                 if count > len_feauture_values:
                     count = count % len_feauture_values
                 if count == 0:
                     count = len(feature_values)
-                
+
                 period_values.append(sample(feature_values, count))
             else:
                 possible_values = list(
                     v for v in feature_values if not v in period_values[i - 1])
                 if not possible_values:
                     break
-            
+
                 value_1 = abs(min_value_by_period)
                 value_2 = abs(min(
                     max_value_by_period, len(possible_values)))
 
-                # 
+                #
                 count = randint(min(value_1, value_2), max(
                     value_1, value_2))
                 len_possible_values = len(possible_values)
@@ -119,12 +123,11 @@ def generate_periods(min_periods_num: int,
                     count = len_possible_values
 
                 period_values.append(sample(possible_values, count))
-              
-              
+
         if len(period_values) > max_periods_num:
             period_values = period_values[:max_periods_num]
-            
-        if period_values:  
+
+        if period_values:
             result.append(
                 {
                     'duration_lower': duration_lower,
@@ -149,7 +152,6 @@ def generate_classes(features: list[TFeature],
     for i in range(classes_num):
         min_v = min(min_features_in_class, len(features))
         max_v = max(min_features_in_class, len(features))
-        # !
         features_in_class_num = randint(min_v, max_v)
 
         selected_features = sorted(sample(
@@ -175,14 +177,47 @@ def generate_classes(features: list[TFeature],
     return result
 
 
+def save_classes_to_database(data: Dict, conn_settings: Dict) -> None:
+    """Сохранение данных классов в базу данных
+
+    Args:
+        data (Dict): Словарь классов
+    """
+    try:
+        usr = conn_settings["usr"]
+        pswd = conn_settings["pswd"]
+        host = conn_settings["host"]
+        port = conn_settings["port"]
+        db = conn_settings["db"]
+    except KeyError as key_error:
+        raise KeyError(f"Bad postgres settings:{key_error}")
+
+    data_classes = [*data["Classes"]]
+    prepared_data = [{"id": str(uuid1()),
+                      "name": record["name"],
+                      "symptoms": record["symptoms"]
+                      } for record in data_classes]
+
+    engine = sqlalchemy.create_engine(
+        f"postgresql://{usr}:{pswd}@{host}:{port}/{db}")
+
+    metadata = MetaData(bind=engine)
+    metadata.reflect()
+    deseases_tbl = metadata.tables['desease_classes']
+    metadata.create_all(checkfirst=True)
+    with engine.connect() as conn:
+        for record in prepared_data:
+            conn.execute(deseases_tbl.insert(),
+                         record)
+
+
 @app.callback(
     output={
-        "alert": Output("alert-id", "children"),
-        "download": Output("download-classes-id", "data")
+        "alert": Output("alert-id", "children")
     },
     inputs={
         "generate": Input("generate-btn-id", "n_clicks"),
-        "seed": State("generation-seed-id", "value"),
+        # "seed": State("generation-seed-id", "value"),
         "min_features_num": State("min-features-num-id", "value"),
         "max_features_num": State("max-features-num-id", "value"),
         "min_values_num": State("min-values-num-id", "value"),
@@ -201,7 +236,7 @@ def generate_classes(features: list[TFeature],
     },
     prevent_initial_call=True
 )
-def generate(generate: int, seed: int,
+def generate(generate: int,
              min_features_num: int,
              max_features_num: int,
              min_values_num: int,
@@ -234,8 +269,14 @@ def generate(generate: int, seed: int,
                                                            name_class_pattern, generate_periods_func)
 
     data_file = json.dumps(knowledge_database_model)
+    save_classes_to_database(knowledge_database_model, {
+        "usr": "user",
+        "pswd": "password",
+        "host": "localhost",
+        "port": 5432,
+        "db": "deseases"
+    })
     result_file = {"content": data_file,
                    "filename": f"{name_class_pattern}_generation.json"}
 
-    return {"alert": "Generation successfull",
-            "download": result_file}
+    return {"alert": "Generation successfull"}
