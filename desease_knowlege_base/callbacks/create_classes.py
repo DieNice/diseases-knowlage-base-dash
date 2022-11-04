@@ -190,7 +190,7 @@ def save_classes_to_database(data: Dict, conn_settings: Dict) -> None:
         port = conn_settings["port"]
         db = conn_settings["db"]
     except KeyError as key_error:
-        raise KeyError(f"Bad postgres settings:{key_error}")
+        raise KeyError(f"Bad postgres settings") from key_error
 
     data_classes = [*data["Classes"]]
     prepared_data = [{"id": str(uuid1()),

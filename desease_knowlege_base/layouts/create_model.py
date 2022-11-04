@@ -4,7 +4,7 @@ from dash_extensions.enrich import html
 
 create_model_layout = dbc.Container(
     [
-        dcc.Download(id="download-classes-id"),
+        # dcc.Download(id="download-classes-id"),
         dbc.Row(dbc.Alert("Generation input form",
                 color="primary", id="alert-id")),
         # dbc.Row([html.Label("Объём генерируемой выборки"),

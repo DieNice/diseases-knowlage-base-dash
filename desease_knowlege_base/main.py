@@ -10,6 +10,7 @@ from app import srv as server
 from layouts.create_model import create_model_layout
 from layouts.navbar import Navbar
 
+from layouts.generate_train import generate_train_layout
 from callbacks.create_classes import generate
 
 app_name = os.getenv("DASH_APP_PATH", "/desease_knowlege_base")
@@ -60,7 +61,7 @@ def display_page(pathname: str) -> Any:
                         {"key": "1", "src": "./assets/images/main.jpg"},
                         {"key": "2", "src": "./assets/images/main.jpg"},
                         {"key": "3", "src": "./assets/images/main.jpg"},
-                    ],  
+                    ],
                     controls=False,
                     indicators=False,
                     interval=2000,
@@ -73,7 +74,7 @@ def display_page(pathname: str) -> Any:
     elif pathname.endswith("/create"):
         return create_model_layout
     elif pathname.endswith("/generate"):
-        return html.Div("Developing, please wait")
+        return generate_train_layout
     elif pathname.endswith("/induction"):
         return html.Div("Developing, please wait")
     elif pathname.endswith("/eval"):
@@ -89,4 +90,4 @@ def index():
 app.layout = index()
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
