@@ -12,6 +12,7 @@ from layouts.navbar import Navbar
 
 from layouts.generate_train import generate_train_layout
 from callbacks.create_classes import generate
+from callbacks.create_train import generate_train_dataset
 
 app_name = os.getenv("DASH_APP_PATH", "/desease_knowlege_base")
 
@@ -23,10 +24,6 @@ header = html.Div(
         html.H1(
             children="Deseases knowlege base", className="header-title"
         ),
-        html.P(
-            children="Анализ данных модельной базы знаний",
-            className="header-description",
-        )
     ],
     className="header",
 )
@@ -58,9 +55,7 @@ def display_page(pathname: str) -> Any:
                 ),
                 dbc.Carousel(
                     items=[
-                        {"key": "1", "src": "./assets/images/main.jpg"},
-                        {"key": "2", "src": "./assets/images/main.jpg"},
-                        {"key": "3", "src": "./assets/images/main.jpg"},
+                        {"key": "1", "src": "./assets/images/infectious diseases.jpeg"},
                     ],
                     controls=False,
                     indicators=False,
@@ -90,4 +85,4 @@ def index():
 app.layout = index()
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)

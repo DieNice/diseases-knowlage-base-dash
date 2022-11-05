@@ -7,7 +7,7 @@ from app import app
 from dash_extensions.enrich import Input, Output, State
 import sqlalchemy
 from sqlalchemy import MetaData
-
+from dash.exceptions import PreventUpdate
 from uuid import uuid1
 
 TFeature: TypeAlias = Dict[str, List[str]]
@@ -253,6 +253,27 @@ def generate(generate: int,
              max_features_in_classes: int,
              name_class_pattern: str,
              ):
+    if generate is None:
+        raise PreventUpdate
+    if ((min_features_num is None) or
+            (max_features_num is None) or
+            (min_values_num is None) or
+            (max_values_num is None) or
+            (min_periods_num is None) or
+            (max_periods_num is None) or
+            (min_period_duration is None) or
+            (max_period_duration is None) or
+            (min_values_by_period is None) or
+            (max_values_by_period is None) or
+            (min_classes_num is None) or
+            (max_classes_num is None) or
+            (min_features_in_classes is None) or
+            (max_features_in_classes is None)):
+        raise PreventUpdate
+    if name_class_pattern is None:
+        raise PreventUpdate
+    if name_class_pattern == "":
+        raise PreventUpdate
 
     knowledge_database_model = {
         'Classes': None

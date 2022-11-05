@@ -5,6 +5,10 @@ from sqlalchemy import MetaData
 import sqlalchemy
 from uuid import uuid1
 from typing import List, Dict
+import copy
+from dash_extensions.enrich import Input, Output, State
+from app import app
+from dash.exceptions import PreventUpdate
 
 
 def get_all_classes(conn_settings: Dict) -> List[Dict]:
@@ -55,9 +59,118 @@ def prepare_data_for_classes_tbl() -> List[Dict]:
                 now_dict = {
                     "name-id": name_class,
                     "feature-id": name_feature,
-                    "period-id": num,
+                    "period-id": num + 1,
                     "lower-id": duration_lower,
                     "upper-id": duration_upper
                 }
                 result_list.append(now_dict)
     return result_list
+
+
+def generate_train(classes_data: List[Dict], generation_seed: int) -> List[Dict]:
+    """Генерация обучающей выборки на основе модели
+
+    Args:
+        classes_data (List[Dict]): Данные классов
+
+    Returns:
+        List[Dict]: Обучающая выборка
+    """
+    MAX_OBSERVETIONS = 3
+
+    generation_train = []
+
+    for record in classes_data:
+        name_class = record[1]
+        features = record[2]
+
+        for _ in range(generation_seed):
+            for feature in features:
+                random.seed(datetime.now())
+                name_feature = feature['feature']
+                periods = feature['periods']
+                for num_period, period in enumerate(periods):
+                    values = period["values"]
+                    actual_values = values[random.randint(0, len(values)-1)]
+                    if len(actual_values) > MAX_OBSERVETIONS:
+                        observations = random.sample(
+                            actual_values, MAX_OBSERVETIONS)
+                    else:
+                        observations = copy.copy(actual_values)
+                        for observation in observations:
+                            class_instance = {
+                                "id": str(uuid1()),
+                                "name_class": name_class,
+                                "name_feature": name_feature,
+                                "num_period": num_period + 1,
+                                "value": observation[name_feature],
+                                "duration": random.randint(period["duration_lower"],
+                                                           period["duration_upper"])
+                            }
+                            generation_train.append(class_instance)
+    return generation_train
+
+
+def save_train_to_db(data: List[Dict], conn_settings: Dict) -> None:
+    """Сохранение обучающей выборки в базу данных
+
+    Args:
+        data (List[Dict]): Список с моментами наблюдений
+    """
+    try:
+        usr = conn_settings["usr"]
+        pswd = conn_settings["pswd"]
+        host = conn_settings["host"]
+        port = conn_settings["port"]
+        db = conn_settings["db"]
+    except KeyError as key_error:
+        raise KeyError(f"Bad postgres settings") from key_error
+
+    engine = sqlalchemy.create_engine(
+        f"postgresql://{usr}:{pswd}@{host}:{port}/{db}")
+
+    metadata = MetaData(bind=engine)
+    metadata.reflect()
+    deseases_train_tbl = metadata.tables['desease_train']
+    metadata.create_all(checkfirst=True)
+    with engine.connect() as conn:
+        conn.execute("truncate table desease_train")
+        for record in data:
+            conn.execute(deseases_train_tbl.insert(),
+                         record)
+
+
+@app.callback(
+    output={
+        "alert": Output("alert-id", "children"),
+        "train-tbl": Output("train-tbl-id", "data")
+    },
+    inputs={
+        "generate": Input("generate-train-id", "n_clicks"),
+        "seed": State("num-instance-id", "value")
+    },
+    prevent_initial_call=True
+)
+def generate_train_dataset(generate: int, seed: int) -> Dict:
+    """Генерация истории болезни
+
+    Returns:
+        Dict: _description_
+    """
+    conn_settings = {
+        "usr": "user",
+        "pswd": "password",
+        "host": "localhost",
+        "port": 5432,
+        "db": "deseases"
+    }
+    if generate is None:
+        raise PreventUpdate
+    if seed is None:
+        raise PreventUpdate
+
+    classes_data = get_all_classes(conn_settings)
+    data_train = generate_train(classes_data, seed)
+    save_train_to_db(data_train, conn_settings)
+    return {"alert": "Генерация модельной выборки прошла успешно!",
+            "train-tbl": data_train}
