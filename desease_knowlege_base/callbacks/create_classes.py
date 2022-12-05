@@ -217,9 +217,6 @@ def save_classes_to_database(data: Dict, conn_settings: Dict) -> None:
     },
     inputs={
         "generate": Input("generate-btn-id", "n_clicks"),
-        # "seed": State("generation-seed-id", "value"),
-        "min_features_num": State("min-features-num-id", "value"),
-        "max_features_num": State("max-features-num-id", "value"),
         "min_values_num": State("min-values-num-id", "value"),
         "max_values_num": State("max-values-num-id", "value"),
         "min_periods_num": State("min-periods-num-id", "value"),
@@ -237,8 +234,6 @@ def save_classes_to_database(data: Dict, conn_settings: Dict) -> None:
     prevent_initial_call=True
 )
 def generate(generate: int,
-             min_features_num: int,
-             max_features_num: int,
              min_values_num: int,
              max_values_num: int,
              min_periods_num: int,
@@ -255,8 +250,7 @@ def generate(generate: int,
              ):
     if generate is None:
         raise PreventUpdate
-    if ((min_features_num is None) or
-            (max_features_num is None) or
+    if (
             (min_values_num is None) or
             (max_values_num is None) or
             (min_periods_num is None) or
@@ -278,7 +272,8 @@ def generate(generate: int,
     knowledge_database_model = {
         'Classes': None
     }
-
+    min_features_num = min_features_in_classes
+    max_features_num = max_features_in_classes
     features = generate_features(
         min_features_num, max_features_num, min_values_num, max_values_num)
 

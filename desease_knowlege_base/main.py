@@ -12,7 +12,7 @@ from layouts.navbar import Navbar
 
 from layouts.generate_train import generate_train_layout
 from callbacks.create_classes import generate
-from callbacks.create_train import generate_train_dataset
+from callbacks.create_train import generate_train_dataset, update_classes_tbl
 
 app_name = os.getenv("DASH_APP_PATH", "/desease_knowlege_base")
 
@@ -85,4 +85,4 @@ def index():
 app.layout = index()
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(host='localhost', port=8050, debug=True)

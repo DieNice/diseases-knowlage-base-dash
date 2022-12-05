@@ -41,11 +41,16 @@ generate_train_layout = dbc.Container([
         filter_action="native",
         sort_action="native",
         sort_mode="multi",
+        column_selectable='multi',
     ),
     dbc.Row([dbc.Col(html.Label("Число экземпляров на класс"))],
             style={"margin-top": "1vh"}),
     dbc.Row([dbc.Col(dbc.Input(id="num-instance-id", type="number",
-            min=1, placeholder="Input seed of instances"))], style={"margin-top": "1vh"}),
+            min=1, placeholder="Введите число генерируемых историй болезней на один класс"))], style={"margin-top": "1vh"}),
+    dbc.Row([dbc.Col(html.Label("Максимальное число моментов наблюдений в периоде"))],
+            style={"margin-top": "1vh"}),
+    dbc.Row([dbc.Col(dbc.Input(id="num-observetions-id", type="number",
+            min=1, max=4, placeholder="Введите максимальное число моментов наблюдей в периоде"))], style={"margin-top": "1vh"}),
     dbc.Row([
             dbc.Button("Generate Train", color="primary",
                        className="me-1", id="generate-train-id")], style={"margin-top": "1vh",
@@ -53,22 +58,23 @@ generate_train_layout = dbc.Container([
     dash_table.DataTable(
         data=[{}, {}, {}],
         columns=[{"id": "name_class", "name": "Название класса"},
+                 {"id": "number_history", "name": "История болезни"},
                  {"id": "name_feature", "name": "Название признака"},
                  {"id": "num_period", "name": "Номер периода"},
+                 {"id": "num_observetion", "name": "Момент наблюдения"},
                  {"id": "value", "name": "Значение"},
-                 {"id": "duration", "name": "Время"},
+                 {"id": "duration", "name": "Длительность периода динамики"},
                  ],
         id="train-tbl-id",
-        style_table={'height': '500px', 'overflowY': 'auto','margin-bottom': '4vh'},
+        style_table={'height': '500px',
+                     'overflowY': 'auto', 'margin-bottom': '4vh'},
         style_cell_conditional=[
-            {
-                'if': {'column_id': c},
-                'textAlign': 'left'
-            } for c in ['Date', 'Region']
         ],
         style_data={
             'color': 'black',
-            'backgroundColor': 'white'
+            'backgroundColor': 'white',
+            'whiteSpace': 'normal',
+            'width': 'auto'
         },
         style_data_conditional=[
             {
@@ -84,6 +90,7 @@ generate_train_layout = dbc.Container([
         filter_action="native",
         sort_action="native",
         sort_mode="multi",
+        column_selectable='multi',
     )
 ]
 )
