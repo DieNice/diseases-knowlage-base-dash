@@ -1,14 +1,16 @@
+import copy
 import json
 import random
 from datetime import datetime
-from sqlalchemy import MetaData
-import sqlalchemy
+from random import randint, sample
+from typing import Dict, List
 from uuid import uuid1
-from typing import List, Dict
-import copy
-from dash_extensions.enrich import Input, Output, State
+
+import sqlalchemy
 from app import app
 from dash.exceptions import PreventUpdate
+from dash_extensions.enrich import Input, Output, State
+from sqlalchemy import MetaData
 
 
 def get_all_classes(conn_settings: Dict) -> List[Dict]:
@@ -51,15 +53,19 @@ def prepare_data_for_classes_tbl() -> List[Dict]:
         name_class = deseases_class[1]
         symptoms = deseases_class[2]
         for feature in symptoms:
-            name_feature = feature["feature"]
+            name_feature = feature["name"]
             feature_periods = feature["periods"]
-            for num, period in enumerate(feature_periods):
-                duration_lower = period["duration_lower"]
-                duration_upper = period["duration_upper"]
+            for period in feature_periods:
+                duration_lower = period["lower_duration"]
+                duration_upper = period["upper_duration"]
+                num_period = period["num_period"]
+                values = period["values"]
+                values = ",".join([str(i) for i in values])
                 now_dict = {
                     "name-id": name_class,
                     "feature-id": name_feature,
-                    "period-id": num + 1,
+                    "period-id": num_period,
+                    "values-id": values,
                     "lower-id": duration_lower,
                     "upper-id": duration_upper
                 }
@@ -76,7 +82,7 @@ def generate_train(classes_data: List[Dict], generation_seed: int, num_observeti
     Returns:
         List[Dict]: Обучающая выборка
     """
-    max_obervetions = num_observetions
+    max_observetions = num_observetions
 
     generation_train = []
 
@@ -86,31 +92,34 @@ def generate_train(classes_data: List[Dict], generation_seed: int, num_observeti
 
         for number_history in range(generation_seed):
             for feature in features:
-                random.seed(datetime.now())
-                name_feature = feature['feature']
+                random.seed(datetime.now().timestamp())
+                name_feature = feature["name"]
                 periods = feature['periods']
-                for num_period, period in enumerate(periods):
-                    period_duration = random.randint(period["duration_lower"],
-                                                     period["duration_upper"])
+                for period in periods:
+                    num_period = period["num_period"]
+                    period_duration = random.randint(period["lower_duration"],
+                                                     period["upper_duration"])
                     values = period["values"]
-                    actual_values = values[random.randint(0, len(values)-1)]
-                    if len(actual_values) > max_obervetions:
-                        observations = random.sample(
-                            actual_values, max_obervetions)
-                    else:
-                        observations = copy.copy(actual_values)
-                        for num_observetion, observation in enumerate(observations):
-                            class_instance = {
-                                "id": str(uuid1()),
-                                "number_history": f"История болезни номер:{number_history+1}",
-                                "name_class": name_class,
-                                "name_feature": name_feature,
-                                "num_period": num_period + 1,
-                                "num_observetion": num_observetion + 1,
-                                "value": observation[name_feature],
-                                "duration": period_duration
-                            }
-                            generation_train.append(class_instance)
+
+                    observations = randint(1, max_observetions)
+
+                    for num_observation in range(1, observations+1):
+
+                        random.seed(datetime.now().timestamp())
+                        random_index = randint(0, len(values)-1)
+                        observation_value = values[random_index]
+
+                        class_instance = {
+                            "id": str(uuid1()),
+                            "number_history": f"История болезни номер:{number_history+1}",
+                            "name_class": name_class,
+                            "name_feature": name_feature,
+                            "num_period": num_period,
+                            "num_observation": num_observation,
+                            "value": observation_value,
+                            "duration": period_duration
+                        }
+                        generation_train.append(class_instance)
     return generation_train
 
 
@@ -185,11 +194,11 @@ def generate_train_dataset(generate: int, seed: int, num_observetions: int) -> D
         "data": Output("classes-tbl-id", "data")
     },
     inputs={
-        "generate": Input("generate-btn-id", "n_clicks")
+        "update": Input("update-classes-tbl-id", "n_clicks")
     },
     prevent_initial_call=True
 )
-def update_classes_tbl(n_clicks: int) -> Dict:
+def update_classes_tbl(update: int) -> Dict:
     """Обновление classes-tbl-id
 
     Returns:
@@ -202,5 +211,73 @@ def update_classes_tbl(n_clicks: int) -> Dict:
         "port": 5432,
         "db": "deseases"
     }
-    result = get_all_classes(conn_settings)
+    if update is None:
+        raise PreventUpdate
+    result = prepare_data_for_classes_tbl()
+    return {"data": result}
+
+
+def get_all_train(conn_settings: Dict) -> List[Dict]:
+    """Получить список всех сгенерированных классов
+
+    Returns:
+        List[Dict]: Список классов
+    """
+    try:
+        usr = conn_settings["usr"]
+        pswd = conn_settings["pswd"]
+        host = conn_settings["host"]
+        port = conn_settings["port"]
+        db = conn_settings["db"]
+    except KeyError as key_error:
+        raise KeyError("Bad postgres settings") from key_error
+    engine = sqlalchemy.create_engine(
+        f"postgresql://{usr}:{pswd}@{host}:{port}/{db}")
+
+    metadata = MetaData(bind=engine)
+    metadata.reflect()
+    metadata.create_all(checkfirst=True)
+
+    with engine.connect() as conn:
+        data = conn.execute("select * from desease_train")
+    data = [row._data for row in data]
+    return data
+
+
+@app.callback(
+    output={
+        "data": Output("train-tbl-id", "data")
+    },
+    inputs={
+        "update": Input("update-train-tbl-id", "n_clicks")
+    },
+    prevent_initial_call=True
+)
+def update_train_tbl(update: int) -> Dict:
+    """Обновление classes-tbl-id
+
+    Returns:
+        List[Dict]: _description_
+    """
+    conn_settings = {
+        "usr": "user",
+        "pswd": "password",
+        "host": "localhost",
+        "port": 5432,
+        "db": "deseases"
+    }
+    if update is None:
+        raise PreventUpdate
+    raw_data = get_all_train(conn_settings)
+
+    result = []
+    for row in raw_data:
+        now_data = {"name_class": row[2],
+                    "number_history": row[1],
+                    "name_feature": row[3],
+                    "num_period": row[4],
+                    "num_observetion": row[5],
+                    "value": row[6],
+                    "duration": row[7]}
+        result.append(now_data)
     return {"data": result}

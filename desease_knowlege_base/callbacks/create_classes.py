@@ -1,180 +1,104 @@
 import json
+import random
+from datetime import datetime
 from functools import partial
 from random import randint, sample
 from typing import Dict, List, TypeAlias
-
-from app import app
-from dash_extensions.enrich import Input, Output, State
-import sqlalchemy
-from sqlalchemy import MetaData
-from dash.exceptions import PreventUpdate
 from uuid import uuid1
 
-TFeature: TypeAlias = Dict[str, List[str]]
-TPeriod: TypeAlias = Dict[int, List[str]]
-TClass: TypeAlias = Dict[str, List[TPeriod]]
+import sqlalchemy
+from app import app
+from dash.exceptions import PreventUpdate
+from dash_extensions.enrich import Input, Output, State
+from sqlalchemy import MetaData
 
 
 def generate_features(min_features: int,
                       max_features: int,
                       min_values: int,
                       max_values: int,
-                      ) -> list[TFeature]:
+                      min_num_periods: int,
+                      max_num_periods: int,
+                      min_period_duration: int,
+                      max_period_duration: int,
+                      ) -> List:
     """Generation features for classes by parameters
-
-    Args:
-        min_features (int): min num features
-        max_features (int): max num features
-        min_values (int): min value for feature
-        max_values (int): max value for feature
-
-    Returns:
-        list[TFeature]: List of features
     """
-    MIN_NORMAL_VALUES_NUM = 1
-    MIN_ABNORMAL_VALUES_NUM = 1
 
     result = []
 
     features_num = randint(min_features, max_features)
 
-    for i in range(features_num):
-        values_num = randint(min_values, max_values)
-        normal_values_num = randint(
-            MIN_NORMAL_VALUES_NUM, values_num)
+    for i in range(1, features_num+1):
+
+        possible_values = [i for i in range(min_values, max_values+1)]
+
+        size_normal_values = randint(1, len(possible_values))
+        normal_values = sample(possible_values, size_normal_values)
+
+        num_periods = randint(min_num_periods, max_num_periods)
+
+        periods = generate_periods(
+            num_periods, possible_values, min_period_duration, max_period_duration)
 
         result.append(
             {
-                'name': "feature_{}".format(i),
-                'values': [{f"feature_{i}": j} for j in range(values_num)],
-                'normal_values': [{f"feature_{i}": j} for j in range(normal_values_num)]
+                "name": f"feature_{i}",
+                "possible_values": possible_values,
+                "normal_values": normal_values,
+                "num_periods":  num_periods,
+                "periods": periods
             }
+
         )
 
     return result
 
 
-def generate_periods(min_periods_num: int,
-                     max_periods_num: int,
+def generate_periods(num_periods: int,
+                     possible_values: List,
                      min_periods_duration: int,
-                     max_periods_duration: int,
-                     min_value_by_period: int,
-                     max_value_by_period: int,
-                     feature_values: list[str],
-                     ) -> list[TPeriod]:
+                     max_periods_duration: int
+                     ) -> List:
     """Generation periods
-
-    Args:
-        feature_values (list[str]): List of features
-        min_periods_num (int): Min period num
-        max_periods_num (int): Max period num
-        min_periods_duration (int): Min period duration
-        max_periods_duration (int): Max period duration
-        min_value_by_period (int): Min value by period
-        max_value_by_period (int): Max value by period
-
-    Returns:
-        list[TPeriod]: List of periods
     """
-    result = []
+    result_periods = []
 
-    periods_num = randint(min_periods_num, max_periods_num)
+    last_values = set()
 
-    for i in range(periods_num):
-        duration_lower = randint(min_periods_duration,
-                                 max_periods_duration - 1)
-        duration_upper = randint(duration_lower, max_periods_duration)
+    for i in range(1, num_periods+1):
+        random.seed(datetime.now().timestamp())
+        middle_duration = int(
+            (max_periods_duration + min_periods_duration) // 2)
 
-        period_values = []
+        lower_duration = randint(min_periods_duration, middle_duration)
+        upper_duration = randint(middle_duration, max_periods_duration)
 
-        for i in range(periods_num):
-            if i == 0:
-                value_1 = abs(min_value_by_period)
-                value_2 = abs(min(max_value_by_period, len(
-                    feature_values) - min_value_by_period))
+        size_of_sample = randint(1, len(possible_values)-1)
 
-                count = randint(min(value_1, value_2), max(
-                    value_1, value_2))
+        values = sample(possible_values, size_of_sample)
 
-                len_feauture_values = len(feature_values)
-                if count > len_feauture_values:
-                    count = count % len_feauture_values
-                if count == 0:
-                    count = len(feature_values)
+        values = set(values)
+        values -= last_values
 
-                period_values.append(sample(feature_values, count))
-            else:
-                possible_values = list(
-                    v for v in feature_values if not v in period_values[i - 1])
-                if not possible_values:
-                    break
+        if len(values) == 0:
+            alternative_values = set(possible_values) - last_values
+            size_alternative = randint(1, len(alternative_values))
+            values = sample(alternative_values, size_alternative)
+            values = set(values)
 
-                value_1 = abs(min_value_by_period)
-                value_2 = abs(min(
-                    max_value_by_period, len(possible_values)))
+        now_period = {
+            "num_period": i,
+            "lower_duration": lower_duration,
+            "upper_duration": upper_duration,
+            "values": list(values)
+        }
 
-                #
-                count = randint(min(value_1, value_2), max(
-                    value_1, value_2))
-                len_possible_values = len(possible_values)
-                if count > len_possible_values:
-                    count = count % len_possible_values
-                if count == 0:
-                    count = len_possible_values
+        last_values = values.copy()
 
-                period_values.append(sample(possible_values, count))
+        result_periods.append(now_period)
 
-        if len(period_values) > max_periods_num:
-            period_values = period_values[:max_periods_num]
-
-        if period_values:
-            result.append(
-                {
-                    'duration_lower': duration_lower,
-                    'duration_upper': duration_upper,
-                    'values': period_values
-                }
-            )
-
-    return result
-
-
-def generate_classes(features: list[TFeature],
-                     min_classes_num: int,
-                     max_classes_num: int,
-                     min_features_in_class: int,
-                     class_name_pattern: str,
-                     generate_periods_partial: partial) -> list[TClass]:
-    result = []
-
-    classes_num = randint(min_classes_num, max_classes_num)
-
-    for i in range(classes_num):
-        min_v = min(min_features_in_class, len(features))
-        max_v = max(min_features_in_class, len(features))
-        features_in_class_num = randint(min_v, max_v)
-
-        selected_features = sorted(sample(
-            features, features_in_class_num), key=lambda d: d['name'])
-
-        class_symptoms = []
-
-        for feature in selected_features:
-            class_symptoms.append(
-                {
-                    'feature': feature['name'],
-                    'periods': generate_periods_partial(feature['values'])
-                }
-            )
-
-        result.append(
-            {
-                'name': f"{class_name_pattern}_{i}",
-                'symptoms': class_symptoms
-            }
-        )
-
-    return result
+    return result_periods
 
 
 def save_classes_to_database(data: Dict, conn_settings: Dict) -> None:
@@ -192,11 +116,10 @@ def save_classes_to_database(data: Dict, conn_settings: Dict) -> None:
     except KeyError as key_error:
         raise KeyError(f"Bad postgres settings") from key_error
 
-    data_classes = [*data["Classes"]]
     prepared_data = [{"id": str(uuid1()),
                       "name": record["name"],
                       "symptoms": record["symptoms"]
-                      } for record in data_classes]
+                      } for record in data]
 
     engine = sqlalchemy.create_engine(
         f"postgresql://{usr}:{pswd}@{host}:{port}/{db}")
@@ -269,22 +192,19 @@ def generate(generate: int,
     if name_class_pattern == "":
         raise PreventUpdate
 
-    knowledge_database_model = {
-        'Classes': None
-    }
     min_features_num = min_features_in_classes
     max_features_num = max_features_in_classes
-    features = generate_features(
-        min_features_num, max_features_num, min_values_num, max_values_num)
+    knowledge_database_model = []
 
-    generate_periods_func = partial(generate_periods, min_periods_num, max_periods_num,
-                                    min_period_duration, max_period_duration, min_values_by_period, max_values_by_period)
+    num_classes = randint(min_classes_num, max_classes_num)
 
-    knowledge_database_model['Classes'] = generate_classes(features, min_classes_num,
-                                                           max_classes_num, min_features_in_classes,
-                                                           name_class_pattern, generate_periods_func)
+    for i in range(1, num_classes+1):
+        now_class = {"name": f"{name_class_pattern}_{i}"}
+        now_class["symptoms"] = generate_features(
+            min_features_num, max_features_num, min_values_num, max_values_num,
+            min_periods_num, max_periods_num, min_period_duration, max_period_duration)
+        knowledge_database_model.append(now_class)
 
-    data_file = json.dumps(knowledge_database_model)
     save_classes_to_database(knowledge_database_model, {
         "usr": "user",
         "pswd": "password",
@@ -292,7 +212,5 @@ def generate(generate: int,
         "port": 5432,
         "db": "deseases"
     })
-    result_file = {"content": data_file,
-                   "filename": f"{name_class_pattern}_generation.json"}
 
     return {"alert": "Generation successfull"}

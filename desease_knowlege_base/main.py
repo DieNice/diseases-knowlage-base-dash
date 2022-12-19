@@ -3,16 +3,15 @@ from typing import Any
 
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
-from dash_extensions.enrich import Input, Output, html
-
 from app import app
 from app import srv as server
-from layouts.create_model import create_model_layout
-from layouts.navbar import Navbar
-
-from layouts.generate_train import generate_train_layout
 from callbacks.create_classes import generate
-from callbacks.create_train import generate_train_dataset, update_classes_tbl
+from callbacks.create_train import (generate_train_dataset, update_classes_tbl,
+                                    update_train_tbl)
+from dash_extensions.enrich import Input, Output, html
+from layouts.create_model import create_model_layout
+from layouts.generate_train import generate_train_layout
+from layouts.navbar import Navbar
 
 app_name = os.getenv("DASH_APP_PATH", "/desease_knowlege_base")
 
@@ -85,4 +84,4 @@ def index():
 app.layout = index()
 
 if __name__ == '__main__':
-    app.run_server(host='localhost', port=8050, debug=True)
+    app.run_server(host='localhost', port=8050, debug=False)

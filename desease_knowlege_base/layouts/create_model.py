@@ -5,7 +5,7 @@ from dash_extensions.enrich import html
 create_model_layout = dbc.Container(
     [
         dbc.Row(dbc.Alert("Generation input form",
-                color="primary", id="alert-id")),
+                color="success", id="alert-id")),
         dbc.Row(dbc.Col(html.Label("Паттерн имени для классов"))),
         dbc.Row([
             dbc.Col([dbc.Input(id="name-class-pattern-id", type="text",

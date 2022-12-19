@@ -1,22 +1,27 @@
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
-from dash_extensions.enrich import html
-from dash import dash_table
 from callbacks.create_train import prepare_data_for_classes_tbl
+from dash import dash_table
+from dash_extensions.enrich import html
 
 generate_train_layout = dbc.Container([
-    dbc.Row(dbc.Alert("Generation input form",
-                      color="primary", id="alert-id")),
+    dbc.Row([dbc.Alert("Generation input form",
+                       color="primary", id="alert-id"),
+            dbc.Button("Update generated classes table", color="success",
+                       className="me-3", id="update-classes-tbl-id", size='sm')]),
     dash_table.DataTable(
+        fixed_rows={'headers': True},
         data=prepare_data_for_classes_tbl(),
         columns=[{"id": "name-id", "name": "Название класса"},
                  {"id": "feature-id", "name": "Название признака"},
                  {"id": "period-id", "name": "Номер периода"},
+                 {"id": "values-id", "name": "Значения периода динамики"},
                  {"id": "lower-id", "name": "Нижняя граница"},
                  {"id": "upper-id", "name": "Верхняя граница"},
                  ],
         id="classes-tbl-id",
-        style_table={'height': '300px', 'overflowY': 'auto'},
+        style_table={'height': '300px',
+                     'overflowY': 'auto', 'overflowX': 'auto'},
         style_cell_conditional=[
             {
                 'if': {'column_id': c},
@@ -31,7 +36,15 @@ generate_train_layout = dbc.Container([
             {
                 'if': {'row_index': 'odd'},
                 'backgroundColor': 'rgb(220, 220, 220)',
-            }
+            },
+            {'if': {'column_id': 'name-id'},
+             'width': '15%'},
+            {'if': {'column_id': 'period-id'},
+             'width': '15%'},
+            {'if': {'column_id': 'values-id'},
+             'width': '20%'},
+            {'if': {'column_id': 'feature-id'},
+             'width': '20%'},
         ],
         style_header={
             'backgroundColor': 'rgb(210, 210, 210)',
@@ -53,8 +66,11 @@ generate_train_layout = dbc.Container([
             min=1, max=4, placeholder="Введите максимальное число моментов наблюдей в периоде"))], style={"margin-top": "1vh"}),
     dbc.Row([
             dbc.Button("Generate Train", color="primary",
-                       className="me-1", id="generate-train-id")], style={"margin-top": "1vh",
-                                                                          "margin-bottom": "2vh"}),
+                       className="me-1", id="generate-train-id"),
+            dbc.Button("Update generated train table", color="success",
+                       className="me-3", id="update-train-tbl-id", size='sm')], style={"margin-top": "1vh",
+                                                                                       "margin-bottom": "2vh"}),
+
     dash_table.DataTable(
         data=[{}, {}, {}],
         columns=[{"id": "name_class", "name": "Название класса"},
