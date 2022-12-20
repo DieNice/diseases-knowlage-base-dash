@@ -5,10 +5,12 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 from app import app
 from app import srv as server
+from callbacks.alternatives_callbacks import generate_alternatives
 from callbacks.create_classes import generate
 from callbacks.create_train import (generate_train_dataset, update_classes_tbl,
                                     update_train_tbl)
 from dash_extensions.enrich import Input, Output, html
+from layouts.alternatives_layout import alternatives_layout
 from layouts.create_model import create_model_layout
 from layouts.generate_train import generate_train_layout
 from layouts.navbar import Navbar
@@ -70,7 +72,7 @@ def display_page(pathname: str) -> Any:
     elif pathname.endswith("/generate"):
         return generate_train_layout
     elif pathname.endswith("/induction"):
-        return html.Div("Developing, please wait")
+        return alternatives_layout
     elif pathname.endswith("/eval"):
         return html.Div("Developing, please wait")
     else:

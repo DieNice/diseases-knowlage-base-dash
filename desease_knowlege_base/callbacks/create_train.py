@@ -73,7 +73,7 @@ def prepare_data_for_classes_tbl() -> List[Dict]:
     return result_list
 
 
-def generate_train(classes_data: List[Dict], generation_seed: int, num_observetions: int) -> List[Dict]:
+def generate_train(classes_data: List[Dict], generation_seed: int, num_observations: int) -> List[Dict]:
     """Генерация обучающей выборки на основе модели
 
     Args:
@@ -82,7 +82,7 @@ def generate_train(classes_data: List[Dict], generation_seed: int, num_observeti
     Returns:
         List[Dict]: Обучающая выборка
     """
-    max_observetions = num_observetions
+    max_observetions = num_observations
 
     generation_train = []
 
@@ -101,9 +101,17 @@ def generate_train(classes_data: List[Dict], generation_seed: int, num_observeti
                                                      period["upper_duration"])
                     values = period["values"]
 
-                    observations = randint(1, max_observetions)
+                    num_observations = randint(1, max_observetions)
 
-                    for num_observation in range(1, observations+1):
+                    if period_duration < num_observations:
+                        period_duration += num_observations
+
+                    observetions = sample(
+                        [i for i in range(1, period_duration+1)], num_observations)
+
+                    observetions.sort()
+
+                    for num_observation in range(num_observations):
 
                         random.seed(datetime.now().timestamp())
                         random_index = randint(0, len(values)-1)
@@ -115,7 +123,7 @@ def generate_train(classes_data: List[Dict], generation_seed: int, num_observeti
                             "name_class": name_class,
                             "name_feature": name_feature,
                             "num_period": num_period,
-                            "num_observation": num_observation,
+                            "moment_observation": observetions[num_observation],
                             "value": observation_value,
                             "duration": period_duration
                         }
@@ -160,11 +168,11 @@ def save_train_to_db(data: List[Dict], conn_settings: Dict) -> None:
     inputs={
         "generate": Input("generate-train-id", "n_clicks"),
         "seed": State("num-instance-id", "value"),
-        "num_observetions": State("num-observetions-id", "value"),
+        "num_observations": State("num-observetions-id", "value"),
     },
     prevent_initial_call=True
 )
-def generate_train_dataset(generate: int, seed: int, num_observetions: int) -> Dict:
+def generate_train_dataset(generate: int, seed: int, num_observations: int) -> Dict:
     """Генерация истории болезни
 
     Returns:
@@ -183,7 +191,7 @@ def generate_train_dataset(generate: int, seed: int, num_observetions: int) -> D
         raise PreventUpdate
 
     classes_data = get_all_classes(conn_settings)
-    data_train = generate_train(classes_data, seed, num_observetions)
+    data_train = generate_train(classes_data, seed, num_observations)
     save_train_to_db(data_train, conn_settings)
     return {"alert": "Генерация модельной выборки прошла успешно!",
             "train-tbl": data_train}
@@ -276,7 +284,7 @@ def update_train_tbl(update: int) -> Dict:
                     "number_history": row[1],
                     "name_feature": row[3],
                     "num_period": row[4],
-                    "num_observetion": row[5],
+                    "moment_observation": row[5],
                     "value": row[6],
                     "duration": row[7]}
         result.append(now_data)

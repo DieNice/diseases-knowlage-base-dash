@@ -77,7 +77,7 @@ generate_train_layout = dbc.Container([
                  {"id": "number_history", "name": "История болезни"},
                  {"id": "name_feature", "name": "Название признака"},
                  {"id": "num_period", "name": "Номер периода"},
-                 {"id": "num_observetion", "name": "Момент наблюдения"},
+                 {"id": "moment_observation", "name": "Момент наблюдения"},
                  {"id": "value", "name": "Значение"},
                  {"id": "duration", "name": "Длительность периода динамики"},
                  ],
