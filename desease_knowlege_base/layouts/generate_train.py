@@ -64,13 +64,17 @@ generate_train_layout = dbc.Container([
             style={"margin-top": "1vh"}),
     dbc.Row([dbc.Col(dbc.Input(id="num-observetions-id", type="number",
             min=1, max=4, placeholder="Введите максимальное число моментов наблюдей в периоде"))], style={"margin-top": "1vh"}),
-    dbc.Row([
-            dbc.Button("Generate Train", color="primary",
-                       className="me-1", id="generate-train-id"),
-            dbc.Button("Update generated train table", color="success",
-                       className="me-3", id="update-train-tbl-id", size='sm')], style={"margin-top": "1vh",
-                                                                                       "margin-bottom": "2vh"}),
-
+    dbc.Row(
+        [
+            dbc.Col(),
+            dbc.Col([
+                dbc.Button("Generate Train", color="primary",
+                           className="me-3", id="generate-train-id", size='lg')]),
+            dbc.Col(),
+        ], style={"text-align": "center"}
+    ),
+    dbc.Row([dbc.Button("Update generated train table", color="success",
+                        className="me-3", id="update-train-tbl-id", size='sm')]),
     dash_table.DataTable(
         data=[{}, {}, {}],
         columns=[{"id": "name_class", "name": "Название класса"},
