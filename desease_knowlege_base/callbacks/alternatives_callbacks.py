@@ -1,10 +1,7 @@
-import copy
-import json
-import random
 from datetime import datetime
-from random import randint, sample
-from typing import Dict, List, Tuple
-from uuid import uuid1
+from itertools import combinations
+from random import sample
+from typing import Dict, List
 
 import dash_core_components as dcc
 import pandas as pd
@@ -203,6 +200,61 @@ def transform_df_batch_to_graph(df_batch: pd.DataFrame) -> dcc.Graph:
     return dcc.Graph(figure=fig)
 
 
+def generate_permutations(df_batch: pd.DataFrame) -> pd.DataFrame:
+    """Генерация расстановок
+
+    Args:
+        df_batch (pd.DataFrame): Пачка данных
+
+    Returns:
+        pd.DataFrame: Пачка данных с расстановками
+    """
+    def map_moments_durations(moments: List, durations: List) -> List:
+        """Маппинг моментов наблюдения и сгенерированных периодов
+
+        Args:
+            moments (List): Список моментов наблюдения
+            durations (List): Список длительностей
+        """
+
+        return []
+
+    NUM_PERIODS = 5
+
+    moments = df_batch.moment_observation.tolist()
+
+    fake_periods = []
+    for i in range(len(moments)-1):
+        fake_periods.append(sum(moments[i:i+2])/2)
+    last_moment = moments[-1]+1
+    fake_periods.append(last_moment)
+
+    len_fake_periods = len(fake_periods)
+
+    all_combs = []
+    for num_period in range(1, NUM_PERIODS+1):
+        len_comb = len_fake_periods - num_period
+        try:
+            combs = [i for i in combinations(fake_periods, len_comb)]
+        except ValueError as value_error:
+            pass
+        else:
+            all_combs.extend(combs)
+    new_all_combs = []
+    set_periods = set(fake_periods)
+    for comb in all_combs:
+        new_comb = set_periods - set(comb)
+        if len(new_comb) <= NUM_PERIODS:
+            if last_moment in new_comb:
+                new_all_combs.append(sorted(list(new_comb)))
+    del all_combs
+
+    for comb in new_all_combs:
+        map_moments_durations(moments, comb)
+
+    return new_all_combs
+
+
 @ app.callback(
     output={
         "alert": Output("alert-alternatives-id", "children"),
@@ -224,6 +276,7 @@ def generate_alternatives(n_clicks: int) -> Dict:
         df_batch = pd.DataFrame(batch)
         df_batch = preparing_df_batch(df_batch)
         graphs.append(transform_df_batch_to_graph(df_batch))
+        generate_permutations(df_batch)
 
     return {"alert": "Generation successfull!",
             "graphs": graphs}
