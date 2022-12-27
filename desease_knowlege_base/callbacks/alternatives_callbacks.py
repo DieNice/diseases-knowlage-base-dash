@@ -258,6 +258,55 @@ def transform_df_batch_permutations_to_table(df_batch_permutations: List[pd.Data
     )
     return html.Div(new_table)
 
+def transform_alternatives_to_table(alternatives: pd.DataFrame) -> dash_table.DataTable:
+    """Преобразование списка пачек с перестановками в Dash таблицу
+
+    Args:
+        df_batch_permutations (List[pd.DataFrame]): Список перестановок
+
+    Returns:
+        dash_table.DataTable: _description_
+    """
+
+    alternatives.drop(['amount_period'],axis=1,inplace=True)
+    alternatives["value"] = alternatives["value"].apply(str)
+
+    new_table = dash_table.DataTable(
+        data=alternatives.to_dict("records"),
+        columns=[
+                 {"id": "desease", "name": "Название класса"},
+                 {"id": "feature", "name": "Название признака"},
+                 {"id": "num_period", "name": "Номер периода"},
+                 {"id": "value", "name": "Значение периода динамики"},
+                 {"id": "lower_duration", "name": "Нижняя граница"},
+                 {"id": "upper_duration", "name": "Верхняя граница"},
+                 ],
+        id="alternatives-tbl-id",
+        style_table={'height': '300px',
+                     'overflowY': 'auto', 'overflowX': 'auto'},
+        style_data_conditional=[
+            {
+                'if': {'row_index': 'odd'},
+                'backgroundColor': 'rgb(220, 220, 220)',
+            },
+            {'if': {'column_id': 'num_period'},
+             'width': '15%'},
+            {'if': {'column_id': 'value'},
+             'width': '20%'},
+            {'if': {'column_id': 'lower_duration'},
+             'width': '20%'},
+        ],
+        style_header={
+            'backgroundColor': 'rgb(210, 210, 210)',
+            'color': 'black',
+            'fontWeight': 'bold'
+        },
+        filter_action="native",
+        sort_action="native",
+        sort_mode="multi",
+        column_selectable='multi',
+    )
+    return html.Div(new_table)
 
 def generate_permutations(df_batch: pd.DataFrame) -> List[pd.DataFrame]:
     """Генерация расстановок
@@ -377,7 +426,8 @@ def get_alternative(permutation: pd.DataFrame) -> pd.DataFrame:
 @ app.callback(
     output={
         "alert": Output("alert-alternatives-id", "children"),
-        "graphs": Output("graphs-content", "children")
+        "graphs": Output("graphs-content", "children"),
+        "alternatives": Output("alternatives-content","children")
     },
     inputs={
         "n_clicks": Input("generate-alternatives-id", "n_clicks"),
@@ -404,12 +454,14 @@ def generate_alternatives(n_clicks: int) -> Dict:
 
         table = transform_df_batch_permutations_to_table(permutations)
         graphs.append(table)
-
+    # TODO: Сделать группировку итеративным процессом а не сливать всё
     result = all_alternatives.groupby(['desease', 'feature', 'amount_period', 'num_period']).agg(
         {'value': lambda x: set(list(sum(x, []))),
          'lower_duration': min,
          'upper_duration': max
          }).reset_index(['desease', 'feature', 'amount_period', 'num_period'])
+    
 
     return {"alert": "Generation successfull!",
-            "graphs": graphs}
+            "graphs": graphs,
+            "alternatives": transform_alternatives_to_table(result)}
