@@ -63,7 +63,7 @@ generate_train_layout = dbc.Container([
     dbc.Row([dbc.Col(html.Label("Максимальное число моментов наблюдений в периоде"))],
             style={"margin-top": "1vh"}),
     dbc.Row([dbc.Col(dbc.Input(id="num-observetions-id", type="number",
-            min=1, max=4, placeholder="Введите максимальное число моментов наблюдей в периоде"))], style={"margin-top": "1vh"}),
+            min=1, max=3, placeholder="Введите максимальное число моментов наблюдей в периоде"))], style={"margin-top": "1vh"}),
     dbc.Row(
         [
             dbc.Col(),

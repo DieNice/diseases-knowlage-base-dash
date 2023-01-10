@@ -268,7 +268,7 @@ def transform_alternatives_to_table(alternatives: pd.DataFrame) -> dash_table.Da
         df_batch_permutations (List[pd.DataFrame]): Список перестановок
 
     Returns:
-        dash_table.DataTable: _description_
+        dash_table.DataTable: Таблица-отчёт с альтернативами
     """
 
     alternatives.drop(['amount_period'],axis=1,inplace=True)
@@ -611,15 +611,15 @@ def choose_best_alternative(alternatives: List[Dict]) -> pd.DataFrame:
         raise ValueError("Similar alternative does not exists")
     return best_alt
 
-def generate_periods_report(best_alts:List[pd.DataFrame])->Tuple[pd.DataFrame,html.Label]:
+def generate_periods_report(best_alts:List[pd.DataFrame])->html.Div:
     """Сравнение ЧПД у одноименных признаков отдельно для каждого заболевания,
     для всех заболеваний
 
     Args:
-        best_alts (List[pd.DataFrame]): _description_
+        best_alts (List[pd.DataFrame]): Список лучших альтернатив
 
     Returns:
-        pd.DataFrame: _description_
+        html.Div: Отчёт сравнения ЧПД
     """
     concated_alts = pd.DataFrame()
     for alt in best_alts:
@@ -661,7 +661,7 @@ def generate_periods_report(best_alts:List[pd.DataFrame])->Tuple[pd.DataFrame,ht
                  {"id": "amount_period", "name": "ИФБЗ ЧПД"},
                  {"id": "model_amount_period", "name": "МБ ЧПД"},
                  ],
-        id="classes-tbl-id",
+        id="periods-tbl-id",
         style_table={'height': '300px',
                      'overflowY': 'auto', 'overflowX': 'auto'},
         style_data_conditional=[
@@ -685,7 +685,87 @@ def generate_periods_report(best_alts:List[pd.DataFrame])->Tuple[pd.DataFrame,ht
     description += f"\n Средний процент совпадения ЧПД: {percentage_by_all}%"
 
 
-    return html.Div([new_table, description])
+    return html.Div([new_table, html.P(description)])
+
+
+def generate_zdp_report(alts:List[pd.DataFrame])->html.Div:
+    """Соотнесение обслатей значений признаков (ЗДП) в соответствующих периодах
+
+
+    Args:
+        alts (List[pd.DataFrame]): Список лучший альтернатив
+
+    Returns:
+        html.Div: Отчёт
+    """
+    result_report = pd.DataFrame()
+    for alt in alts:
+        alt_desease = alt.desease[0]
+        alt_feature = alt.feature[0]
+        feautures = get_features_by_desease(alt_desease)
+
+        need_model_feature = None
+        for model_feature in feautures:
+            if model_feature['name'] == alt_feature:
+                need_model_feature = model_feature
+                del feautures
+                break
+        if need_model_feature is None:
+            raise ValueError("Model feature don't exists!")
+        if alt.amount_period.max() != need_model_feature['num_periods']:
+            continue
+        else:
+            model_value = [period['values'] for period in need_model_feature['periods']]
+            alt['model_value'] = model_value
+            del model_value
+            alt['percentage'] = alt.apply(lambda x: len(set(x['value']) & set(x['model_value']))/len(x['model_value'])*100 ,axis=1) 
+            result_report = pd.concat([result_report,alt])
+    
+    result_report['value'] = result_report['value'].astype(str)
+    result_report['model_value'] = result_report['model_value'].astype(str)
+
+    new_table = dash_table.DataTable(
+        data=result_report.to_dict("records"),
+        columns=[{"id": "desease", "name": "Заболевание"},
+                 {"id": "feature", "name": "Признак"},
+                 {"id": "num_period", "name": "Номер периода"},
+                 {"id": "value", "name": "ИФБЗ ЗДП"},
+                 {"id": "model_value", "name": "МБ ЗДП"},
+                 {"id": "percentage", "name": "Процент совпадения"},
+                 ],
+        id="zdp-tbl-id",
+        style_table={'height': '300px',
+                     'overflowY': 'auto', 'overflowX': 'auto'},
+        style_data_conditional=[
+            {
+                'if': {'row_index': 'odd'},
+                'backgroundColor': 'rgb(220, 220, 220)',
+            },
+            {'if': {'column_id': 'num_alt'},
+             'width': '15%'},
+            {'if': {'column_id': 'num_period'},
+             'width': '15%'},
+            {'if': {'column_id': 'value'},
+             'width': '20%'},
+            {'if': {'column_id': 'lower_duration'},
+             'width': '20%'},
+            {'if': {'column_id': 'upper_duration'},
+             'width': '20%'},
+        ],
+        style_header={
+            'backgroundColor': 'rgb(210, 210, 210)',
+            'color': 'black',
+            'fontWeight': 'bold'
+        },
+        filter_action="native",
+        sort_action="native",
+        sort_mode="multi",
+        column_selectable='multi',
+    )
+    common_percentage = result_report['percentage'].mean()
+    description = f"Средний процент соотнесения областей значений признаков ЗДП для всех заболеваний {common_percentage}%"
+
+    return html.Div([new_table,html.P(description)])
 
 @ app.callback(
     output={
@@ -745,10 +825,11 @@ def generate_alternatives(n_clicks: int) -> Dict:
                            'color': 'white'}))
         report.append(transform_alternative_to_table([best_alt]))
     
-    report.append(
-        html.H4("Сравнение периодов")
-    ) 
+    report.append(html.H4("Сравнение периодов",style={'background-color': 'purple',
+                           'color': 'white'})) 
     report.append(generate_periods_report(best_alts))
-
+    report.append(html.H4("Соотнесение областей значений признаков (ЗДП)",style={'background-color': 'purple',
+                           'color': 'white'}))
+    report.append(generate_zdp_report(best_alts))
     return {"alert": "Generation successfull!",
             "report": report}
