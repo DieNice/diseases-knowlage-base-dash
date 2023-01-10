@@ -611,6 +611,81 @@ def choose_best_alternative(alternatives: List[Dict]) -> pd.DataFrame:
         raise ValueError("Similar alternative does not exists")
     return best_alt
 
+def generate_periods_report(best_alts:List[pd.DataFrame])->Tuple[pd.DataFrame,html.Label]:
+    """Сравнение ЧПД у одноименных признаков отдельно для каждого заболевания,
+    для всех заболеваний
+
+    Args:
+        best_alts (List[pd.DataFrame]): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    concated_alts = pd.DataFrame()
+    for alt in best_alts:
+        concated_alts = pd.concat([concated_alts,alt])
+    result_alts = concated_alts.groupby(['desease',
+    'feature']).agg({'amount_period':'max'}).reset_index()
+    alt_dicts = result_alts.to_dict('records')
+    del result_alts, concated_alts
+
+    result_dicts = []
+    for alt_dict in alt_dicts:
+        desease_features = get_features_by_desease(alt_dict['desease'])
+        need_feature = None
+        for feature in desease_features:
+            if feature['name'] == alt_dict['feature']:
+                need_feature = feature
+                break
+        model_amount_period = need_feature['num_periods']
+        del desease_features, need_feature
+        result_dicts.append({**alt_dict,
+            'model_amount_period': model_amount_period
+        })
+    
+    result_report = pd.DataFrame(result_dicts)
+    del result_dicts
+    result_report['eq'] = result_report.amount_period == result_report.model_amount_period
+    percentage_by_desease = result_report.groupby(['desease']).agg({'amount_period':'count',
+    'eq':'sum'}).reset_index()
+    percentage_by_desease['eq'] = percentage_by_desease['eq'].astype(float)
+    percentage_by_desease['amount_period'] = percentage_by_desease['amount_period'].astype(float)
+    percentage_by_desease['percentage'] = percentage_by_desease['amount_period'] / percentage_by_desease['eq'] * 100;
+    percentage_by_all = percentage_by_desease['percentage'].mean()
+
+
+    new_table = dash_table.DataTable(
+        data=result_report.to_dict("records"),
+        columns=[{"id": "desease", "name": "Название класса"},
+                 {"id": "feature", "name": "Название признака"},
+                 {"id": "amount_period", "name": "ИФБЗ ЧПД"},
+                 {"id": "model_amount_period", "name": "МБ ЧПД"},
+                 ],
+        id="classes-tbl-id",
+        style_table={'height': '300px',
+                     'overflowY': 'auto', 'overflowX': 'auto'},
+        style_data_conditional=[
+            {
+                'if': {'row_index': 'odd'},
+                'backgroundColor': 'rgb(220, 220, 220)',
+            }
+        ],
+        style_header={
+            'backgroundColor': 'rgb(210, 210, 210)',
+            'color': 'black',
+            'fontWeight': 'bold'
+        },
+        filter_action="native",
+        sort_action="native",
+        sort_mode="multi",
+        column_selectable='multi',
+    )
+    description = "Процент совпадения ЧПД: \n" +"\n".join([f"Заболевание: {dct['desease']} - {dct['percentage']}%" for
+     dct in percentage_by_desease.to_dict('records')])
+    description += f"\n Средний процент совпадения ЧПД: {percentage_by_all}%"
+
+
+    return html.Div([new_table, description])
 
 @ app.callback(
     output={
@@ -658,8 +733,10 @@ def generate_alternatives(n_clicks: int) -> Dict:
     alternatives = unite_alternatives(configs)
     report.append(html.H2("Альтернативы"))
 
+    best_alts = []
     for alt in alternatives:
         best_alt = choose_best_alternative(alt)
+        best_alts.append(best_alt)
         report.append(html.H3(f"{alt['desease']} {alt['feature']}"))
         report.append(transform_alternative_to_table(alt['alternatives']))
         report.append(
@@ -667,6 +744,11 @@ def generate_alternatives(n_clicks: int) -> Dict:
                     style={'background-color': 'green',
                            'color': 'white'}))
         report.append(transform_alternative_to_table([best_alt]))
+    
+    report.append(
+        html.H4("Сравнение периодов")
+    ) 
+    report.append(generate_periods_report(best_alts))
 
     return {"alert": "Generation successfull!",
             "report": report}
