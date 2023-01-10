@@ -118,6 +118,13 @@ def generate_random_configs() -> List[Dict]:
     NUM_FEATURES = 2
     all_deseases = get_all_deseases()
 
+    common_features = []
+    for desease in all_deseases:
+        common_features.extend(get_features_by_desease(desease))
+    common_features = {feature['name'] for feature in common_features}
+
+    names_features = sample(common_features, NUM_FEATURES)
+
     configs = []
 
     for desease in all_deseases:
@@ -126,10 +133,6 @@ def generate_random_configs() -> List[Dict]:
         features = get_features_by_desease(desease)
 
         selected_histories = sample(histories, NUM_HISTORIES)
-
-        selected_features = sample(features, NUM_FEATURES)
-        names_features = [feature["name"] for feature in selected_features]
-        del selected_features
 
         for history in selected_histories:
             for feature in names_features:
@@ -168,9 +171,9 @@ def preparing_df_batch(df_batch: pd.DataFrame) -> pd.DataFrame:
             condlist = [df_batch.num_period == num_period]
             choicelist_1 = [df_batch.duration + duration]
             choicelist_2 = [df_batch.moment_observation + duration]
-            df_batch["duration"] = pd.np.select(
+            df_batch["duration"] = np.select(
                 condlist, choicelist_1, df_batch.duration)
-            df_batch["moment_observation"] = pd.np.select(
+            df_batch["moment_observation"] = np.select(
                 condlist, choicelist_2, df_batch.moment_observation)
             num_period += 1
 
@@ -308,6 +311,63 @@ def transform_alternatives_to_table(alternatives: pd.DataFrame) -> dash_table.Da
     )
     return html.Div(new_table)
 
+def transform_alternative_to_table(alternatives: List[pd.DataFrame]) -> dash_table.DataTable:
+    """Преобразование альтернатив болезни по определенному признакн в таблицу
+    алтернатив
+
+    Args:
+        alternatives (List[pd.DataFrame]): Альтернативы
+
+    Returns:
+        dash_table.DataTable: Таблица альтернатив
+    """
+    concated_df = pd.DataFrame()
+
+    for i, df in enumerate(alternatives):
+        df["num_alt"] = i + 1
+        concated_df = pd.concat([concated_df, df])
+    concated_df.value = concated_df.value.apply(str)
+    new_table = dash_table.DataTable(
+        data=concated_df.to_dict("records"),
+        columns=[{"id": "num_alt", "name": "Номер альтернативы"},
+                 {"id": "desease", "name": "Название класса"},
+                 {"id": "num_period", "name": "Номер периода"},
+                 {"id": "value", "name": "Значения периода динамики"},
+                 {"id": "lower_duration", "name": "Нижняя граница"},
+                 {"id": "upper_duration", "name": "Верхняя граница"},
+                 ],
+        id="classes-tbl-id",
+        style_table={'height': '300px',
+                     'overflowY': 'auto', 'overflowX': 'auto'},
+        style_data_conditional=[
+            {
+                'if': {'row_index': 'odd'},
+                'backgroundColor': 'rgb(220, 220, 220)',
+            },
+            {'if': {'column_id': 'num_alt'},
+             'width': '15%'},
+            {'if': {'column_id': 'num_period'},
+             'width': '15%'},
+            {'if': {'column_id': 'value'},
+             'width': '20%'},
+            {'if': {'column_id': 'lower_duration'},
+             'width': '20%'},
+            {'if': {'column_id': 'upper_duration'},
+             'width': '20%'},
+        ],
+        style_header={
+            'backgroundColor': 'rgb(210, 210, 210)',
+            'color': 'black',
+            'fontWeight': 'bold'
+        },
+        filter_action="native",
+        sort_action="native",
+        sort_mode="multi",
+        column_selectable='multi',
+    )
+    return html.Div(new_table)
+
+
 def generate_permutations(df_batch: pd.DataFrame) -> List[pd.DataFrame]:
     """Генерация расстановок
 
@@ -423,11 +483,139 @@ def get_alternative(permutation: pd.DataFrame) -> pd.DataFrame:
     return res_df
 
 
+def unite_alternatives(alternatives: List[pd.DataFrame]) -> List[Dict]:
+    """Объединение альтернатив по одноимённым признакам у двух историй болезни
+    с одним экзаменом.
+        Условия:
+            • объединяются альтернативы с одинаковым ЧПД;
+            • при объединении для соответствующих периодов
+            «Значения для периода» объединяются;
+            • при объединении для соответствующих периодов
+            «Нижняя граница» выбирается минимальной из двух;
+            • при объединении для соответствующих периодов
+            «Верхняя граница» выбирается максимальной из двух;
+            • после объединения сохраняется только результат объединения
+            (объединявшиеся альтернативы удаляются).
+
+    Args:
+        alternatives (List[pd.DataFrame]): Список с альтернативами
+
+    Returns:
+        List[Dict]: Готовые варианты алтернатив
+    """
+    df = pd.DataFrame(alternatives)
+    agg_df = df.groupby(['desease', 'feature']).agg(
+        {'alternatives': lambda x: list(x)}).reset_index()
+    agg_dicts = agg_df.to_dict('records')
+    del df, agg_df
+
+    result_alts = []
+
+    for agg_dict in agg_dicts:
+        alts_1, alts_2 = tuple(agg_dict['alternatives'])
+        tmp_alts = []
+        for alt_1 in alts_1:
+            alt_1_amount_period = alt_1.amount_period[0]
+            for alt_2 in alts_2:
+                alt_2_amount_period = alt_2.amount_period[0]
+                if alt_1_amount_period == alt_2_amount_period:
+                    sub_df = pd.concat([alt_1, alt_2])
+                    sub_res = sub_df.groupby(['desease', 'feature', 'amount_period', 'num_period']).agg(
+                        {'value': lambda x: list(set(list(sum(x, [])))),
+                         'lower_duration': min,
+                         'upper_duration': max
+                         }).reset_index(['desease', 'feature', 'amount_period',
+                                         'num_period'])
+                    del sub_df
+                    if is_corrected_alternative(sub_res):
+                        tmp_alts.append(sub_res)
+        result_alts.append({
+            'desease': agg_dict['desease'],
+            'feature': agg_dict['feature'],
+            'alternatives': tmp_alts
+        })
+
+    return result_alts
+
+
+def is_corrected_alternative(alternative: pd.DataFrame) -> bool:
+    """Проверка на валидность алтернативы, если значения в соседних периодах
+    динамики пересекаются то False
+
+    Args:
+        alternative (pd.DataFrame): Сгенерированная альтернатива
+
+    Returns:
+        bool: True - корректно, False -  некорректно
+    """
+    agg_alternative = alternative.groupby(['num_period']).agg(
+        {'value': lambda x: sum(list(x), [])}).reset_index()
+    alternative_dicts = agg_alternative.to_dict('records')
+    if len(agg_alternative['num_period'].unique()) == 5:
+        pass
+    prev_set = set()
+    for alternative_dict in alternative_dicts:
+        sub_set = set(alternative_dict['value']) & prev_set
+        if len(sub_set) != 0:
+            return False
+        prev_set = set(alternative_dict['value'])
+    if len(agg_alternative['num_period'].unique()) == 5:
+        pass
+    return True
+
+
+def choose_best_alternative(alternatives: List[Dict]) -> pd.DataFrame:
+    """Выбор лучшей альтернативы
+
+    Args:
+        alternatives (List[pd.DataFrame]): Список Альтернатив конкретной болезни
+    определенного признака
+    Returns:
+        pd.DataFrame: Лучшая альтернативая DataFrame
+    """
+    feautures = get_features_by_desease(alternatives['desease'])
+    need_model_feature = None
+    for model_feature in feautures:
+        if model_feature['name'] == alternatives['feature']:
+            need_model_feature = model_feature
+            del feautures
+            break
+    if need_model_feature is None:
+        raise ValueError("Model feature don't exists!")
+    alts = alternatives['alternatives']
+
+    similar_alts = []
+    for need_num_periods in range(need_model_feature['num_periods'], 0, -1):
+        for alt in alts:
+            alt_num_period = max(alt.num_period)
+            if alt_num_period == need_num_periods:
+                similar_alts.append(alt)
+        if similar_alts:
+            break
+
+    best_alt = None
+    best_mark = 0
+    model_periods = model_feature['periods']
+    for similar_alt in similar_alts:
+        similar_dicts = similar_alt.to_dict('records')
+        sub_mark = 0
+        for i, similar_dict in enumerate(similar_dicts):
+            model_period_values = model_periods[i]['values']
+            sub_set = set(model_period_values) & set(similar_dict['value'])
+            sub_mark += len(sub_set) / len(model_period_values)
+        if sub_mark >= best_mark:
+            best_alt = similar_alt
+            best_mark = sub_mark
+            
+    if best_alt is None:
+        raise ValueError("Similar alternative does not exists")
+    return best_alt
+
+
 @ app.callback(
     output={
         "alert": Output("alert-alternatives-id", "children"),
-        "graphs": Output("graphs-content", "children"),
-        "alternatives": Output("alternatives-content","children")
+        "report": Output("report-content", "children")
     },
     inputs={
         "n_clicks": Input("generate-alternatives-id", "n_clicks"),
@@ -437,31 +625,48 @@ def get_alternative(permutation: pd.DataFrame) -> pd.DataFrame:
 
 )
 def generate_alternatives(n_clicks: int) -> Dict:
+    """Генерация отчёта о формирования альтернатив
+
+    Args:
+        n_clicks (int): _description_
+
+    Returns:
+        Dict: _description_
+    """
     configs = generate_random_configs()
 
-    all_alternatives = pd.DataFrame()
-    graphs = []
+    report = []
+    report.append(html.H2("Комбинации"))
     for config in configs:
         batch = get_batch_by_config(config)
         df_batch = pd.DataFrame(batch)
         df_batch = preparing_df_batch(df_batch)
-        graphs.append(transform_df_batch_to_graph(df_batch))
+        report.append(transform_df_batch_to_graph(df_batch))
         permutations = generate_permutations(df_batch)
 
+        filtered_permutations = []
+        alternatives = []
         for permutation in permutations:
             new_alternative = get_alternative(permutation)
-            all_alternatives = pd.concat([all_alternatives, new_alternative])
+            if is_corrected_alternative(new_alternative):
+                alternatives.append(new_alternative)
+                filtered_permutations.append(permutation)
+        config['alternatives'] = alternatives
+        table = transform_df_batch_permutations_to_table(filtered_permutations)
+        report.append(table)
 
-        table = transform_df_batch_permutations_to_table(permutations)
-        graphs.append(table)
-    # TODO: Сделать группировку итеративным процессом а не сливать всё
-    result = all_alternatives.groupby(['desease', 'feature', 'amount_period', 'num_period']).agg(
-        {'value': lambda x: set(list(sum(x, []))),
-         'lower_duration': min,
-         'upper_duration': max
-         }).reset_index(['desease', 'feature', 'amount_period', 'num_period'])
-    
+    alternatives = unite_alternatives(configs)
+    report.append(html.H2("Альтернативы"))
+
+    for alt in alternatives:
+        best_alt = choose_best_alternative(alt)
+        report.append(html.H3(f"{alt['desease']} {alt['feature']}"))
+        report.append(transform_alternative_to_table(alt['alternatives']))
+        report.append(
+            html.H4(f"Лучшая альтернатива {alt['desease']} {alt['feature']}",
+                    style={'background-color': 'green',
+                           'color': 'white'}))
+        report.append(transform_alternative_to_table([best_alt]))
 
     return {"alert": "Generation successfull!",
-            "graphs": graphs,
-            "alternatives": transform_alternatives_to_table(result)}
+            "report": report}

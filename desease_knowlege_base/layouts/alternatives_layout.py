@@ -10,12 +10,7 @@ alternatives_layout = dbc.Container(
                            color="success", id="alert-alternatives-id")]),
         dbc.Row([dbc.Col(), dbc.Col(dbc.Button("Generation alternatives", color="primary",
                                                className="me-3", id="generate-alternatives-id", size='lg')), dbc.Col()]),
-        html.Div(id="graphs-content"),
-        dbc.Label("Альтернативы",style={"text-align":"center"}),
-        html.Hr(),
-        html.Hr(),
-        html.Div(id="alternatives-content"),
-        html.Hr(),
-        html.Hr(),
+        html.Div(id="report-content"),
+        html.Hr()
     ]
 )
