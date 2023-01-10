@@ -15,10 +15,8 @@ def Navbar():
                         href=f"{app_name}/create")),
             dbc.NavItem(dbc.NavLink("Генерация модельной выборки",
                         href=f"{app_name}/generate")),
-            dbc.NavItem(dbc.NavLink("Индуктивное формирование",
-                        href=f"{app_name}/induction")),
-            dbc.NavItem(dbc.NavLink("Оценка",
-                        href=f"{app_name}/eval")),
+            dbc.NavItem(dbc.NavLink("Индуктивное формирование/Отчёт",
+                        href=f"{app_name}/induction"))
         ],
         brand="Главная",
         brand_href="/",

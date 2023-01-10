@@ -225,10 +225,10 @@ def transform_df_batch_permutations_to_table(df_batch_permutations: List[pd.Data
         columns=[{"id": "num_comb", "name": "Номер комбинации"},
                  {"id": "desease", "name": "Название класса"},
                  {"id": "history", "name": "Номер истории"},
-                 {"id": "num_period", "name": "Номер периода"},
-                 {"id": "moment_observation", "name": "Момент наблюдения"},
-                 {"id": "value", "name": "Значение периода динамики"},
-                 {"id": "duration", "name": "Длительность периода динамики"},
+                 {"id": "num_period", "name": "НП"},
+                 {"id": "moment_observation", "name": "МН"},
+                 {"id": "value", "name": "ЗПД"},
+                 {"id": "duration", "name": "ДПД"},
                  ],
         id="classes-tbl-id",
         style_table={'height': '300px',
@@ -237,72 +237,13 @@ def transform_df_batch_permutations_to_table(df_batch_permutations: List[pd.Data
             {
                 'if': {'row_index': 'odd'},
                 'backgroundColor': 'rgb(220, 220, 220)',
-            },
-            {'if': {'column_id': 'num_comb'},
-             'width': '15%'},
-            {'if': {'column_id': 'num_period'},
-             'width': '15%'},
-            {'if': {'column_id': 'value'},
-             'width': '20%'},
-            {'if': {'column_id': 'history'},
-             'width': '20%'},
-            {'if': {'column_id': 'duration'},
-             'width': '20%'},
+            }
         ],
         style_header={
             'backgroundColor': 'rgb(210, 210, 210)',
             'color': 'black',
-            'fontWeight': 'bold'
-        },
-        filter_action="native",
-        sort_action="native",
-        sort_mode="multi",
-        column_selectable='multi',
-    )
-    return html.Div(new_table)
-
-def transform_alternatives_to_table(alternatives: pd.DataFrame) -> dash_table.DataTable:
-    """Преобразование списка пачек с перестановками в Dash таблицу
-
-    Args:
-        df_batch_permutations (List[pd.DataFrame]): Список перестановок
-
-    Returns:
-        dash_table.DataTable: Таблица-отчёт с альтернативами
-    """
-
-    alternatives.drop(['amount_period'],axis=1,inplace=True)
-    alternatives["value"] = alternatives["value"].apply(str)
-
-    new_table = dash_table.DataTable(
-        data=alternatives.to_dict("records"),
-        columns=[
-                 {"id": "desease", "name": "Название класса"},
-                 {"id": "feature", "name": "Название признака"},
-                 {"id": "num_period", "name": "Номер периода"},
-                 {"id": "value", "name": "Значение периода динамики"},
-                 {"id": "lower_duration", "name": "Нижняя граница"},
-                 {"id": "upper_duration", "name": "Верхняя граница"},
-                 ],
-        id="alternatives-tbl-id",
-        style_table={'height': '300px',
-                     'overflowY': 'auto', 'overflowX': 'auto'},
-        style_data_conditional=[
-            {
-                'if': {'row_index': 'odd'},
-                'backgroundColor': 'rgb(220, 220, 220)',
-            },
-            {'if': {'column_id': 'num_period'},
-             'width': '15%'},
-            {'if': {'column_id': 'value'},
-             'width': '20%'},
-            {'if': {'column_id': 'lower_duration'},
-             'width': '20%'},
-        ],
-        style_header={
-            'backgroundColor': 'rgb(210, 210, 210)',
-            'color': 'black',
-            'fontWeight': 'bold'
+            'fontWeight': 'bold',
+            'fontSize': '1em'
         },
         filter_action="native",
         sort_action="native",
@@ -332,9 +273,9 @@ def transform_alternative_to_table(alternatives: List[pd.DataFrame]) -> dash_tab
         columns=[{"id": "num_alt", "name": "Номер альтернативы"},
                  {"id": "desease", "name": "Название класса"},
                  {"id": "num_period", "name": "Номер периода"},
-                 {"id": "value", "name": "Значения периода динамики"},
-                 {"id": "lower_duration", "name": "Нижняя граница"},
-                 {"id": "upper_duration", "name": "Верхняя граница"},
+                 {"id": "value", "name": "ЗПД"},
+                 {"id": "lower_duration", "name": "НГ"},
+                 {"id": "upper_duration", "name": "ВГ"},
                  ],
         id="classes-tbl-id",
         style_table={'height': '300px',
